@@ -14,5 +14,9 @@
   "devDependencies": {
     "electron": "^39.2.6",
     "electron-reload": "^2.0.0-alpha.1"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "sqlite3": "^5.1.7"
   }
 }

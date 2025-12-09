@@ -1,3 +1,273 @@
-<h1>Hello Electron</h1>
-<p>my Welcome to your Electron application.</p>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Todo App</title>
+  <style>
+    :root {
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      color: #0f172a;
+      background: #0b1021;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at 20% 20%, rgba(78, 206, 255, 0.1), transparent 35%),
+                  radial-gradient(circle at 80% 0%, rgba(123, 97, 255, 0.1), transparent 35%),
+                  #0b1021;
+    }
+    .app {
+      width: min(900px, 95vw);
+      background: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 18px;
+      padding: 28px;
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+      color: #e2e8f0;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      letter-spacing: 0.3px;
+    }
+    p {
+      margin: 0 0 20px;
+      color: #94a3b8;
+    }
+    form {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: 1fr 1fr 140px;
+      margin-bottom: 18px;
+      align-items: end;
+    }
+    label {
+      display: block;
+      color: #cbd5e1;
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+    input, textarea, button, select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+      color: #e2e8f0;
+      outline: none;
+    }
+    textarea { resize: vertical; min-height: 44px; }
+    button {
+      cursor: pointer;
+      border: none;
+      background: linear-gradient(135deg, #5ac8fa, #7c3aed);
+      color: #0b1021;
+      font-weight: 700;
+      transition: transform 0.08s ease, box-shadow 0.2s ease;
+    }
+    button:active { transform: translateY(1px); }
+    .list {
+      display: grid;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .card {
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.02);
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+    }
+    .meta { color: #94a3b8; font-size: 13px; }
+    .title { font-weight: 700; font-size: 16px; margin-bottom: 4px; }
+    .controls { display: flex; gap: 8px; align-items: center; }
+    .pill {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      text-transform: capitalize;
+    }
+    .pill.pending { background: rgba(250, 204, 21, 0.15); color: #facc15; }
+    .pill.completed { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+    .pill.deleted { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+    .error {
+      margin-top: 8px;
+      color: #fca5a5;
+      font-size: 13px;
+      min-height: 18px;
+    }
+    @media (max-width: 760px) {
+      form { grid-template-columns: 1fr; }
+      .controls { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <h1>Tasks</h1>
+    <p>Create, complete, and delete tasks. Uses the `/api/tasks` endpoints.</p>
 
+    <form id="taskForm">
+      <div>
+        <label for="taskName">Task name</label>
+        <input id="taskName" name="taskName" placeholder="e.g. Write docs" required />
+      </div>
+      <div>
+        <label for="description">Description</label>
+        <textarea id="description" name="description" placeholder="Optional details"></textarea>
+      </div>
+      <div>
+        <button type="submit">Add task</button>
+      </div>
+    </form>
+    <div class="error" id="formError"></div>
+
+    <section>
+      <div class="list" id="taskList"></div>
+      <div class="error" id="listError"></div>
+    </section>
+  </main>
+
+  <script>
+    const taskList = document.getElementById("taskList");
+    const form = document.getElementById("taskForm");
+    const formError = document.getElementById("formError");
+    const listError = document.getElementById("listError");
+    const apiBase = "http://localhost:3000/api/tasks";
+
+    const setError = (el, message = "") => { el.textContent = message; };
+
+    const parseJsonSafely = async (res) => {
+      const text = await res.text();
+      try {
+        return JSON.parse(text);
+      } catch {
+        throw new Error(text || "Unexpected non-JSON response from API");
+      }
+    };
+
+    const renderTasks = (tasks = []) => {
+      taskList.innerHTML = "";
+      if (!tasks.length) {
+        taskList.innerHTML = "<p class='meta'>No tasks yet.</p>";
+        return;
+      }
+      tasks.forEach((task) => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <div>
+            <div class="title">${task.taskName ?? "Untitled task"}</div>
+            <div class="meta">${task.description ?? ""}</div>
+            <div class="meta">Created: ${new Date(task.createdAt).toLocaleString()}</div>
+          </div>
+          <div class="controls">
+            <span class="pill ${task.status}">${task.status}</span>
+            <select data-id="${task.id}" class="status-select">
+              <option value="pending" ${task.status === "pending" ? "selected" : ""}>Pending</option>
+              <option value="completed" ${task.status === "completed" ? "selected" : ""}>Completed</option>
+              <option value="deleted" ${task.status === "deleted" ? "selected" : ""}>Deleted</option>
+            </select>
+            <button data-id="${task.id}" class="delete-btn" aria-label="Delete ${task.taskName}">Delete</button>
+          </div>
+        `;
+        taskList.appendChild(card);
+      });
+    };
+
+    const loadTasks = async () => {
+      setError(listError, "");
+      try {
+        const res = await fetch(apiBase);
+        if (!res.ok) throw new Error(`Failed to load tasks (${res.status})`);
+        const data = await parseJsonSafely(res);
+        renderTasks(data);
+      } catch (err) {
+        setError(listError, err.message);
+        console.error("Load tasks failed:", err);
+      }
+    };
+
+    const addTask = async (taskName, description) => {
+      setError(formError, "");
+      try {
+        const res = await fetch(apiBase, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ taskName, description }),
+        });
+        if (!res.ok) throw new Error(`Failed to add task (${res.status})`);
+        form.reset();
+        await loadTasks();
+      } catch (err) {
+        setError(formError, err.message);
+        console.error("Add task failed:", err);
+      }
+    };
+
+    const updateStatus = async (id, status) => {
+      setError(listError, "");
+      try {
+        const res = await fetch(`${apiBase}/${id}/status`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status }),
+        });
+        if (!res.ok) throw new Error(`Failed to update status (${res.status})`);
+        await loadTasks();
+      } catch (err) {
+        setError(listError, err.message);
+        console.error("Update status failed:", err);
+      }
+    };
+
+    const deleteTask = async (id) => {
+      setError(listError, "");
+      try {
+        const res = await fetch(`${apiBase}/${id}`, { method: "DELETE" });
+        if (!res.ok) throw new Error(`Failed to delete task (${res.status})`);
+        await loadTasks();
+      } catch (err) {
+        setError(listError, err.message);
+        console.error("Delete task failed:", err);
+      }
+    };
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const taskName = form.taskName.value.trim();
+      const description = form.description.value.trim();
+      if (!taskName) {
+        setError(formError, "Task name is required.");
+        return;
+      }
+      addTask(taskName, description);
+      form.reset();
+    });
+
+    taskList.addEventListener("change", (e) => {
+      if (e.target.classList.contains("status-select")) {
+        const id = e.target.getAttribute("data-id");
+        const status = e.target.value;
+        updateStatus(id, status);
+      }
+    });
+
+    taskList.addEventListener("click", (e) => {
+      if (e.target.classList.contains("delete-btn")) {
+        const id = e.target.getAttribute("data-id");
+        deleteTask(id);
+      }
+    });
+
+    loadTasks();
+  </script>
+</body>
+</html>
