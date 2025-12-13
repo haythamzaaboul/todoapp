@@ -1,0 +1,19 @@
+ to create the DB : 
+  you first have to start an postgresql server, the cmd is : 
+      - sudo systemctl start postgresql
+
+
+  create the database user 
+    _ sudo -u postgresql psql
+    inside the psql
+
+    CREATE USER myuser WITH PASSWORD 'StrongPasswordHere';
+CREATE DATABASE mydb OWNER myuser;
+
+
+run you .sql in the DB folder 
+  psql -h 127.0.0.1 -U myuser -d mydb -f schema.sql
+
+
+
+
