@@ -5,4 +5,4 @@ CREATE TABLE IF NOT EXISTS users (
   password_hashed TEXT NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 
-)
+) 
