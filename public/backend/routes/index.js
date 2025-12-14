@@ -1,8 +1,10 @@
 import {Router} from 'express';
-import userRoutes from './user.routes.js'
+import userRoutes from './user.routes.js'; 
+import todoRoutes from './todo.route.js';
 
 const router = Router();
 
-router.use('/user', userRoutes); 
-// add the task routes when its done.
+router.use('/user', userRoutes);
+ 
+router.use('/todo', todoRoutes);
 export default router; 
