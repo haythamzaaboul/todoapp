@@ -1,7 +1,7 @@
 import userService from "../services/user.service.js";
 
 
-const getUserProfile = async (req, res, next) =>{
+export const getUserProfile = async (req, res, next) =>{
   try {
     const { username } = req.user;
     const db = req.app.locals.db;
@@ -23,7 +23,7 @@ const getUserProfile = async (req, res, next) =>{
 
 
 
-const addUser = async (req, res, next) =>{
+export const addUser = async (req, res, next) =>{
   try{
     const {username, email, password} = req.body;
     const db = req.app.locals.db;
@@ -83,5 +83,4 @@ export const loginUser = async (req, res, next) => {
 };
 
 export default {getUserProfile, addUser, deleteUser, loginUser};
-
 

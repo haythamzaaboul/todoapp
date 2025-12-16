@@ -16,7 +16,13 @@
     "electron-reload": "^2.0.0-alpha.1"
   },
   "dependencies": {
+    "bcrypt": "^5.1.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
     "express": "^5.2.1",
-    "sqlite3": "^5.1.7"
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.11.3",
+    "sqlite3": "^5.1.7",
+    "zod": "^4.1.13"
   }
 }

@@ -1,4 +1,4 @@
-export {z} from 'zod';
+import { z } from 'zod';
 
 export const addUserSchema = z.object({
     username: z.string().min(3).max(30),
@@ -19,4 +19,3 @@ export const loginUserSchema = z.object({
 export const deleteUserSchema = z.object({
     username: z.string().min(3).max(30),
 });
-

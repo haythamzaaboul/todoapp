@@ -11,7 +11,7 @@ router.get('/', Auth, getUserProfile);
 
 router.post('/', UserValidation, addUser);
 
-router.delete('/id',Auth, deleteUser);
+router.delete('/', Auth, deleteUser);
 
 router.post('/auth', UserValidation, loginUser);
 

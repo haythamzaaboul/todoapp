@@ -10,9 +10,9 @@ async function getUser(Username, db){
 
 
 async function addUser(username, email, password, db) {
-  const hashedpassword = await bcrypt.hash(password, SALT_ROUNDS);
-  const q = 'INSERT INTO users (username, email, hashedpassword) VALUES ($1, $2, $3) RETURNING id, username, email, created_at';
-  const {rows} = await db.query(q, [username, email, hashedpassword]);
+  const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+  const q = 'INSERT INTO users (username, email, password_hashed) VALUES ($1, $2, $3) RETURNING id, username, email, created_at';
+  const {rows} = await db.query(q, [username, email, hashedPassword]);
   return rows[0];
 }
 
@@ -34,7 +34,7 @@ async function loginUser(username, password, db) {
   const { rows } = await db.query(q, [username]);
   const user = rows[0];
 
-  if (user && bcrypt.compareSync(password, user.hashedpassword)) {
+  if (user && bcrypt.compareSync(password, user.password_hashed)) {
     const token = sign.signToken({
       id: user.id,
       username: user.username,

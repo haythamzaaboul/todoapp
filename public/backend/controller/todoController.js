@@ -59,7 +59,7 @@ export const updateTodo = async (req, res, next) => {
     try {
         const todoId = req.params.id;
         const { title, description, is_completed, due_date } = req.body;
-        const { db } = req.app.locals.db;
+        const db = req.app.locals.db;
         const todo = await todoService.updateTodo(todoId, title, description, is_completed, due_date, db);
         if (!todo) {
             return res.status(404).json({
@@ -77,7 +77,7 @@ export const updateTodo = async (req, res, next) => {
 export const deleteTodo = async (req, res, next) => {
     try {
         const todoId = req.params.id;
-        const { db } = req.app.locals.db;
+        const db = req.app.locals.db;
         const todo = await todoService.deleteTodo(todoId, db);
         if (!todo) {
             return res.status(404).json({
