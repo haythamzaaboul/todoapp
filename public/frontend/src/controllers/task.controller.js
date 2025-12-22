@@ -12,9 +12,9 @@ const getAllTasksController = async (req, res) => {
 
 const addTaskController = async (req, res) => {
     try {
-        const {taskName, description} = req.body;
-        const result = await addTask(taskName, description);
-        res.status(201).json({ id: result.id });
+        const {taskName, description, remoteId, dueDate} = req.body;
+        const result = await addTask(taskName, description, remoteId, dueDate);
+        res.status(201).json({ id: result.id, remoteId: result.remoteId, dueDate: result.dueDate });
     }
     catch (err) {
         res.status(500).json({ error: err.message });

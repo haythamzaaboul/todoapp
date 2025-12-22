@@ -5,11 +5,11 @@ const  {Pool} = pg;
 
 export default async function postgresLoader() {
   const pool = new Pool({
-    user: config.dbUser,
-    host: config.dbHost,
-    database: config.dbName,
-    password: config.dbPassword,
-    port: config.dbPort,
+    host: config.db.host,
+    port: config.db.port,
+    user: config.db.user,
+    password: config.db.password,
+    database: config.db.name,
   });
 
   pool.on('error', (err) => {

@@ -60,7 +60,7 @@ function createWindow() {
     },
   });
 
-  win.loadFile(path.join(__dirname, "public/index.html"));
+  win.loadFile(path.join(__dirname, "public/app.html"));
 }
 
 // Start API immediately so it works even if the Electron window fails

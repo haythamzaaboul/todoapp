@@ -8,8 +8,8 @@ function signToken({ id, username, email }) {
       username,
       email,
     },
-    config.jwtSecret,
-    { expiresIn: '7d' },
+    config.jwt.secret,
+    { expiresIn: config.jwt.expiresIn || '7d' },
   );
 }
 

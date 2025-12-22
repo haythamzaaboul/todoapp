@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Todo App — Login</title>
+  <style>
+    :root {
+      font-family: "Sora", "SF Pro Display", "Segoe UI", sans-serif;
+      color: #0f172a;
+      background: #061220;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(120% 80% at 10% 10%, rgba(99, 188, 255, 0.14), transparent 45%),
+                  radial-gradient(90% 80% at 90% 10%, rgba(132, 225, 188, 0.12), transparent 50%),
+                  linear-gradient(145deg, #061220, #0b1626);
+      color: #dfe8f6;
+      padding: 24px;
+    }
+    .card {
+      width: min(640px, 95vw);
+      backdrop-filter: blur(10px);
+      background: rgba(13, 20, 36, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 18px;
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+      padding: 22px;
+    }
+    h1 { margin: 0 0 6px; font-size: 26px; }
+    p { margin: 0 0 18px; color: #9fb4d6; }
+    form {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    label {
+      display: block;
+      color: #c7d5f1;
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+    input {
+      width: 100%;
+      padding: 12px 13px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: #0c1626;
+      color: #e8f2ff;
+      outline: none;
+    }
+    input:focus { border-color: rgba(116, 185, 255, 0.7); }
+    button {
+      cursor: pointer;
+      border: none;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #7ae4c7, #74b9ff);
+      color: #082026;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      transition: transform 0.08s ease, box-shadow 0.2s ease;
+      box-shadow: 0 15px 30px rgba(115, 211, 226, 0.25);
+    }
+    button:active { transform: translateY(1px); }
+    .row { display: grid; gap: 12px; }
+    .error { color: #fca5a5; min-height: 18px; font-size: 13px; }
+    .success { color: #86efac; min-height: 18px; font-size: 13px; }
+    .link { color: #7ae4c7; cursor: pointer; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <section class="card">
+    <h1>Todo Control</h1>
+    <p>Sign up or log in to sync tasks to PostgreSQL and work offline with SQLite.</p>
+
+    <div class="row">
+      <form id="signupForm">
+        <h2 style="margin:0 0 6px;">Create account</h2>
+        <div>
+          <label for="signupUsername">Username</label>
+          <input id="signupUsername" name="signupUsername" placeholder="Choose a username" required />
+        </div>
+        <div>
+          <label for="signupEmail">Email</label>
+          <input id="signupEmail" name="signupEmail" type="email" placeholder="you@example.com" required />
+        </div>
+        <div>
+          <label for="signupPassword">Password</label>
+          <input id="signupPassword" name="signupPassword" type="password" placeholder="••••••••" required />
+        </div>
+        <button type="submit">Create account</button>
+      </form>
+      <form id="loginForm">
+        <h2 style="margin:0 0 6px;">Login</h2>
+        <div>
+          <label for="loginUsername">Username</label>
+          <input id="loginUsername" name="loginUsername" placeholder="Username" required />
+        </div>
+        <div>
+          <label for="loginPassword">Password</label>
+          <input id="loginPassword" name="loginPassword" type="password" placeholder="Password" required />
+        </div>
+        <button type="submit">Login</button>
+      </form>
+    </div>
+
+    <div class="error" id="authError"></div>
+    <div class="success" id="authSuccess"></div>
+    <div class="link" id="goApp">Already logged in? Open the app →</div>
+  </section>
+
+  <script>
+    const signupForm = document.getElementById("signupForm");
+    const loginForm = document.getElementById("loginForm");
+    const authError = document.getElementById("authError");
+    const authSuccess = document.getElementById("authSuccess");
+    const goApp = document.getElementById("goApp");
+
+    const remoteUserBase = "http://localhost:8040/api/user";
+
+    let authToken = localStorage.getItem("authToken") || "";
+    let authUser = localStorage.getItem("authUser") || "";
+
+    const setError = (msg = "") => { authError.textContent = msg; };
+    const setSuccess = (msg = "") => { authSuccess.textContent = msg; };
+
+    if (authToken && authUser) {
+      setSuccess(`Already signed in as ${authUser}.`);
+    }
+
+    signupForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      setError(""); setSuccess("");
+      const username = signupForm.signupUsername.value.trim();
+      const email = signupForm.signupEmail.value.trim();
+      const password = signupForm.signupPassword.value.trim();
+      if (!username || !email || !password) {
+        setError("All signup fields are required.");
+        return;
+      }
+      try {
+        const res = await fetch(remoteUserBase, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, email, password }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data?.message || "Failed to create user");
+        }
+        setSuccess("Account created. Please login.");
+        signupForm.reset();
+      } catch (err) {
+        setError(err.message);
+      }
+    });
+
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      setError(""); setSuccess("");
+      const username = loginForm.loginUsername.value.trim();
+      const password = loginForm.loginPassword.value.trim();
+      if (!username || !password) {
+        setError("Username and password are required.");
+        return;
+      }
+      try {
+        const res = await fetch(`${remoteUserBase}/auth`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data?.message || "Login failed");
+        }
+        const data = await res.json();
+        const token = data?.data?.token;
+        if (!token) throw new Error("Token missing in response");
+        localStorage.setItem("authToken", token);
+        localStorage.setItem("authUser", username);
+        setSuccess("Logged in! Opening the app…");
+        setTimeout(() => window.location.href = "./app.html", 600);
+      } catch (err) {
+        setError(err.message);
+      }
+    });
+
+    goApp.addEventListener("click", () => {
+      window.location.href = "./app.html";
+    });
+  </script>
+</body>
+</html>

@@ -14,15 +14,15 @@ const getAllTasks = async () => {
 };
 
 // status by default is 'pending'
-const addTask = async (taskName, description) => {
-    const sql = 'INSERT INTO items (taskName, description, status, dirty) VALUES (?, ?, "pending", 0)';
+const addTask = async (taskName, description, remoteId = null, dueDate = null) => {
+    const sql = 'INSERT INTO items (taskName, description, status, dirty, remoteId, dueDate) VALUES (?, ?, "pending", 0, ?, ?)';
     return new Promise((resolve, reject) => {
-        db.run(sql, [taskName, description], function(err) {
+        db.run(sql, [taskName, description, remoteId, dueDate], function(err) {
             if (err) {
                 reject(err);
             } else {
                 console.log('Task added with ID:', this.lastID);
-                resolve({ id: this.lastID });
+                resolve({ id: this.lastID, remoteId, dueDate });
             }
         });
     });

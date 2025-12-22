@@ -4,13 +4,15 @@ import config from '../config/config.js';
 // verify JWT token middleware
 export default function Auth(req, res, next) {
   try {
-    const authHeader = req.header('Authorization') || '';
-    const token = authHeader.replace('Bearer ', '');
+    const authHeader = req.header('Authorization') || req.header('authorization') || '';
+    const tokenFromHeader = authHeader.replace('Bearer ', '').trim();
+    const token = tokenFromHeader || req.query.token || req.body?.token;
+
     if (!token) {
       return res.status(401).send({ error: 'Please authenticate.' });
     }
 
-    const payload = jwt.verify(token, config.jwtSecret);
+    const payload = jwt.verify(token, config.jwt.secret);
     req.user = {
       id: payload.sub,
       username: payload.username,
