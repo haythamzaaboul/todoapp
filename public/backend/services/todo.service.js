@@ -7,9 +7,9 @@ const getTodos = async (userId, db) => {
     return result.rows;
 }
 
-const getTodobyId = async (Id, db) => {
-    const q = 'SELECT * FROM todos WHERE id = $1';
-    const {rows} = await db.query(q, [Id]);
+const getTodobyId = async (Id, userId, db) => {
+    const q = 'SELECT * FROM todos WHERE id = $1 AND user_id = $2';
+    const {rows} = await db.query(q, [Id, userId]);
     return rows[0];
 }
 
@@ -25,28 +25,28 @@ const createTodo = async (userId, title, description, due_date, db) => {
 };
 
 
-const updateTodo = async (todoId, title, description, is_completed, due_date, db) => {
+const updateTodo = async (todoId, userId, title, description, is_completed, due_date, db) => {
     const q = `
         UPDATE todos
         SET title = COALESCE($1, title),
             description = COALESCE($2, description),
             is_completed = COALESCE($3, is_completed),
             due_date = COALESCE($4, due_date)
-        WHERE id = $5
+        WHERE id = $5 AND user_id = $6
         RETURNING *;
     `;
-    const {rows} = await db.query(q, [title, description, is_completed, due_date, todoId]);
+    const {rows} = await db.query(q, [title, description, is_completed, due_date, todoId, userId]);
     return rows[0];
 };
 
 
-const deleteTodo = async (todoId, db) => {
+const deleteTodo = async (todoId, userId, db) => {
     const q = `
         DELETE FROM todos
-        WHERE id = $1
+        WHERE id = $1 AND user_id = $2
         RETURNING *;
     `;
-    const {rows} = await db.query(q, [todoId]);
+    const {rows} = await db.query(q, [todoId, userId]);
     return rows[0];
 };
 

@@ -294,6 +294,7 @@
         </div>
         <div class="controls">
           <span class="chip" id="authStatus">Checking session…</span>
+          <button type="button" class="button-ghost" id="syncBtn">Sync</button>
           <button type="button" class="button-ghost" id="logoutBtn">Logout</button>
         </div>
       </header>
@@ -377,8 +378,10 @@
     const logoutBtn = document.getElementById("logoutBtn");
     const filterGroup = document.getElementById("filterGroup");
     const searchInput = document.getElementById("searchInput");
+    const syncTodoBtn = document.getElementById("syncBtn");
 
     const apiBase = "http://localhost:3000/api/tasks";
+    const localSyncBase = "http://localhost:3000/api/sync";
     const remoteTodoBase = "http://localhost:8040/api/todo";
 
     let authToken = localStorage.getItem("authToken") || "";
@@ -494,35 +497,71 @@
       }
     };
 
+    const syncDownRemote = async () => {
+      try {
+        requireAuth();
+        const res = await fetch(`${remoteTodoBase}?token=${encodeURIComponent(authToken)}`, {
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+        if (res.status === 401) return clearAuth();
+        if (!res.ok) throw new Error(`Failed to fetch remote tasks (${res.status})`);
+        const data = await parseJsonSafely(res);
+        const todos = data?.data || data || [];
+
+        // Upsert into local SQLite
+        await fetch(`${localSyncBase}/import`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ todos }),
+        });
+      } catch (err) {
+        console.warn("Skipping remote pull (offline?):", err.message);
+      }
+    };
+
     const addTask = async (taskName, description, dueDate) => {
       setError(formError, "");
       setSuccess(formSuccess, "");
+      let remoteId = null;
+      let remoteSynced = false;
       try {
         requireAuth();
-        const remoteRes = await fetch(`${remoteTodoBase}?token=${encodeURIComponent(authToken)}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${authToken}`,
-          },
-          body: JSON.stringify({ title: taskName, description, due_date: dueDate || null }),
-        });
-        if (remoteRes.status === 401) return clearAuth();
-        if (!remoteRes.ok) {
-          const error = await parseJsonSafely(remoteRes);
-          throw new Error(error?.message || "Failed to add task to PostgreSQL");
+
+        // Try remote first; if it fails, continue with local insert (offline-friendly).
+        try {
+          const remoteRes = await fetch(`${remoteTodoBase}?token=${encodeURIComponent(authToken)}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({ title: taskName, description, due_date: dueDate || null }),
+          });
+          if (remoteRes.status === 401) {
+            // Remote rejected auth; continue locally but notify via auth UI.
+            clearAuth();
+          } else if (remoteRes.ok) {
+            const remoteData = await parseJsonSafely(remoteRes);
+            remoteId = remoteData?.data?.id || remoteData?.id || null;
+            remoteSynced = true;
+          } else {
+            console.warn("Remote add failed, falling back to local only:", remoteRes.status);
+          }
+        } catch (remoteErr) {
+          console.warn("Remote add failed, falling back to local only:", remoteErr);
         }
-        const remoteData = await parseJsonSafely(remoteRes);
-        const remoteId = remoteData?.data?.id || remoteData?.id;
 
         const res = await fetch(apiBase, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ taskName, description, remoteId, dueDate }),
+          body: JSON.stringify({ taskName, description, remoteId, dueDate, dirty: remoteSynced ? 1 : 0 }),
         });
-        if (!res.ok) throw new Error(`Failed to add task (${res.status})`);
+        if (!res.ok) throw new Error(`Failed to add task locally (${res.status})`);
         form.reset();
-        setSuccess(formSuccess, "Task added and synced.");
+        setSuccess(
+          formSuccess,
+          remoteId ? "Task added and synced." : "Task added locally. Will sync when online."
+        );
         await loadTasks();
       } catch (err) {
         setError(formError, err.message);
@@ -532,6 +571,7 @@
 
     const updateStatus = async (id, status, remoteId) => {
       setError(listError, "");
+      let remoteSynced = false;
       try {
         requireAuth();
         if (remoteId) {
@@ -544,11 +584,12 @@
             body: JSON.stringify({ is_completed: status === "completed" }),
           });
           if (remoteRes.status === 401) return clearAuth();
+          remoteSynced = remoteRes.ok;
         }
         const res = await fetch(`${apiBase}/${id}/status`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status }),
+          body: JSON.stringify({ status, dirty: remoteSynced ? 1 : 0 }),
         });
         if (!res.ok) throw new Error(`Failed to update status (${res.status})`);
         await loadTasks();
@@ -612,6 +653,57 @@
       clearAuth();
     });
 
+    syncTodoBtn.addEventListener("click", async () => {
+      setError(listError, "");
+      try {
+        requireAuth();
+        syncTodoBtn.disabled = true;
+        syncTodoBtn.textContent = "Syncing...";
+
+        // Fetch unsynced tasks from the local SQLite API
+        const pendingRes = await fetch(localSyncBase, { method: "GET" });
+        if (!pendingRes.ok) throw new Error(`Failed to load tasks to sync (${pendingRes.status})`);
+        const pendingPayload = await parseJsonSafely(pendingRes);
+        const todos = pendingPayload?.todos || [];
+        const payloadTodos = todos.map((todo) => ({
+          id: todo.remoteId || todo.id || null,
+          title: todo.title || todo.taskName || "Untitled task",
+          description: todo.description || "",
+          is_completed: todo.status === "completed",
+          due_date: todo.dueDate || null,
+        }));
+
+        // Push them to the remote Postgres API
+        const res = await fetch(`${remoteTodoBase}/sync?token=${encodeURIComponent(authToken)}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({ todos: payloadTodos }),
+        });
+        if (res.status === 401) return clearAuth();
+        if (!res.ok) throw new Error(`Failed to sync tasks (${res.status})`);
+
+        // Mark synced locally (set dirty=1) now that the remote push succeeded
+        const localIds = todos.map((todo) => todo.id).filter(Boolean);
+        if (localIds.length) {
+          await fetch(`${localSyncBase}/mark`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ids: localIds }),
+          });
+        }
+        await loadTasks();
+      } catch (err) {
+        setError(listError, err.message);
+        console.error("Sync tasks failed:", err);
+      } finally {
+        syncTodoBtn.disabled = false;
+        syncTodoBtn.textContent = "Sync";
+      }
+    });
+
     filterGroup.addEventListener("click", (e) => {
       if (e.target.classList.contains("chip-btn")) {
         filterStatus = e.target.getAttribute("data-filter");
@@ -627,10 +719,18 @@
       renderTasks();
     });
 
-    // Initial auth check and data load
-    syncAuthUI();
-    requireAuth();
-    loadTasks();
+    const bootstrap = async () => {
+      syncAuthUI();
+      try {
+        requireAuth();
+        await syncDownRemote();
+        await loadTasks();
+      } catch (err) {
+        console.error("Bootstrap failed:", err);
+      }
+    };
+
+    bootstrap();
   </script>
 </body>
 </html>

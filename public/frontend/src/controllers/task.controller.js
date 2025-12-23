@@ -12,9 +12,9 @@ const getAllTasksController = async (req, res) => {
 
 const addTaskController = async (req, res) => {
     try {
-        const {taskName, description, remoteId, dueDate} = req.body;
-        const result = await addTask(taskName, description, remoteId, dueDate);
-        res.status(201).json({ id: result.id, remoteId: result.remoteId, dueDate: result.dueDate });
+        const {taskName, description, remoteId, dueDate, dirty = 0} = req.body;
+        const result = await addTask(taskName, description, remoteId, dueDate, dirty);
+        res.status(201).json({ id: result.id, remoteId: result.remoteId, dueDate: result.dueDate, dirty: result.dirty });
     }
     catch (err) {
         res.status(500).json({ error: err.message });
@@ -24,8 +24,8 @@ const addTaskController = async (req, res) => {
 const updateTaskStatusController = async (req, res) => {
     try {
         const {id} = req.params;
-        const {status} = req.body;
-        const result = await updateTaskStatus(id, status);
+        const {status, dirty = 1} = req.body;
+        const result = await updateTaskStatus(id, status, dirty);
         res.status(200).json({ changes: result.changes });
     }
     catch (err) {

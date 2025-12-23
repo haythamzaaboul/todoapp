@@ -21,8 +21,9 @@ export const getTodos = async (req, res, next) => {
 export const getTodoById = async (req, res, next) => {
     try {
         const todoId = req.params.id;
+        const userId = req.user.id;
         const db = req.app.locals.db;
-        const todo = await todoService.getTodobyId(todoId, db);
+        const todo = await todoService.getTodobyId(todoId, userId, db);
         if (!todo) {
             return res.status(404).json({
                 status: "fail",
@@ -58,9 +59,10 @@ export const createTodo = async (req, res, next) => {
 export const updateTodo = async (req, res, next) => {
     try {
         const todoId = req.params.id;
+        const userId = req.user.id;
         const { title, description, is_completed, due_date } = req.body;
         const db = req.app.locals.db;
-        const todo = await todoService.updateTodo(todoId, title, description, is_completed, due_date, db);
+        const todo = await todoService.updateTodo(todoId, userId, title, description, is_completed, due_date, db);
         if (!todo) {
             return res.status(404).json({
                 status: "fail",
@@ -77,8 +79,9 @@ export const updateTodo = async (req, res, next) => {
 export const deleteTodo = async (req, res, next) => {
     try {
         const todoId = req.params.id;
+        const userId = req.user.id;
         const db = req.app.locals.db;
-        const todo = await todoService.deleteTodo(todoId, db);
+        const todo = await todoService.deleteTodo(todoId, userId, db);
         if (!todo) {
             return res.status(404).json({
                 status: "fail",

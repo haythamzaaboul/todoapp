@@ -14,15 +14,15 @@ const getAllTasks = async () => {
 };
 
 // status by default is 'pending'
-const addTask = async (taskName, description, remoteId = null, dueDate = null) => {
-    const sql = 'INSERT INTO items (taskName, description, status, dirty, remoteId, dueDate) VALUES (?, ?, "pending", 0, ?, ?)';
+const addTask = async (taskName, description, remoteId = null, dueDate = null, dirty = 0) => {
+    const sql = 'INSERT INTO items (taskName, description, status, dirty, remoteId, dueDate) VALUES (?, ?, "pending", ?, ?, ?)';
     return new Promise((resolve, reject) => {
-        db.run(sql, [taskName, description, remoteId, dueDate], function(err) {
+        db.run(sql, [taskName, description, dirty, remoteId, dueDate], function(err) {
             if (err) {
                 reject(err);
             } else {
                 console.log('Task added with ID:', this.lastID);
-                resolve({ id: this.lastID, remoteId, dueDate });
+                resolve({ id: this.lastID, remoteId, dueDate, dirty });
             }
         });
     });
@@ -30,10 +30,10 @@ const addTask = async (taskName, description, remoteId = null, dueDate = null) =
 
 
 
-const updateTaskStatus = async (id, status) => {
-    const sql = 'UPDATE items SET status = ? WHERE id = ?';
+const updateTaskStatus = async (id, status, dirty = 1) => {
+    const sql = 'UPDATE items SET status = ?, dirty = ? WHERE id = ?';
     return new Promise((resolve, reject) => {
-        db.run(sql, [status, id], function(err) {
+        db.run(sql, [status, dirty, id], function(err) {
             if (err) {
                 console.error('Error updating task status:', err.message);
                 reject(err);
